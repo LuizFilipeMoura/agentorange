@@ -1,0 +1,140 @@
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: #0f172a;
+  background-color: #f1f5f9;
+}
+
+body {
+  margin: 0;
+  background: #f1f5f9;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.app__header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.app__content {
+  display: grid;
+  gap: 2rem;
+}
+
+.app__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 20px 45px -35px rgba(15, 23, 42, 0.4);
+}
+
+.app__label {
+  font-weight: 600;
+}
+
+.app__textarea {
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5f5;
+  padding: 1rem;
+  min-height: 120px;
+  resize: vertical;
+  font: inherit;
+}
+
+.app__file-input {
+  border: 1px dashed #64748b;
+  padding: 0.75rem;
+  border-radius: 0.75rem;
+}
+
+.app__file-list {
+  font-size: 0.9rem;
+  color: #475569;
+  margin: 0;
+}
+
+.recorder {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5f5;
+  background: #f8fafc;
+}
+
+.recorder__label {
+  margin: 0 0 0.75rem;
+  font-weight: 500;
+}
+
+.recorder__controls {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.recorder__error {
+  color: #ef4444;
+  margin-bottom: 0.75rem;
+}
+
+.app__actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.app__button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #2563eb;
+  color: white;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.app__button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.app__button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px -20px rgba(37, 99, 235, 0.8);
+}
+
+.app__button--secondary {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.app__response {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 20px 45px -35px rgba(15, 23, 42, 0.4);
+}
+
+.app__error {
+  color: #b91c1c;
+}
+
+.message-bubble {
+  background: #2563eb;
+  color: white;
+  padding: 1rem;
+  border-radius: 1rem;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+@media (min-width: 900px) {
+  .app__content {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
