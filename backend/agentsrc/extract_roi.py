@@ -89,85 +89,66 @@ def extract_single_roi(img, name, roi_config):
         "height": roi_h
     }
 
-    # Run OCR if requested
+
     if do_ocr and pytesseract:
         try:
             log(f"[{name}] Starting OCR processing...")
             log(f"[{name}] Original ROI size: {roi_w}x{roi_h}")
 
-            # STEP 0: Save original ROI before any processing
+            # Save original ROI (color)
             debug_original_path = f"roi_{name}_0_original.png"
             cv2.imwrite(debug_original_path, roi)
             log(f"[{name}] Saved original ROI to: {debug_original_path}")
 
-            # STEP 1: Upscale the ROI for better OCR (make it 4x larger)
-            scale_factor = 4
-            upscaled = cv2.resize(roi, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_CUBIC)
-            log(f"[{name}] Upscaled to: {upscaled.shape[1]}x{upscaled.shape[0]} ({scale_factor}x)")
+            # --- Keep only white/gray pixels (low saturation, high value) ---
+            hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+            lower = np.array([0, 0, 180], dtype=np.uint8)
+            upper = np.array([180, 40, 255], dtype=np.uint8)
+            mask = cv2.inRange(hsv, lower, upper)
+            fg = cv2.bitwise_and(roi, roi, mask=mask)
 
-            # Save upscaled image (still in color/BGR)
-            debug_upscaled_path = f"roi_{name}_0b_upscaled.png"
-            cv2.imwrite(debug_upscaled_path, upscaled)
-            log(f"[{name}] Saved upscaled (color) ROI to: {debug_upscaled_path}")
+            cv2.imwrite(f"roi_{name}_1_mask.png", mask)
+            cv2.imwrite(f"roi_{name}_2_only_white_gray.png", fg)
 
-            # STEP 2: Convert to grayscale
-            gray = cv2.cvtColor(upscaled, cv2.COLOR_BGR2GRAY)
-            log(f"[{name}] Converted to grayscale")
+            # --- Prep for OCR: grayscale → binarize → invert (dark text on white) ---
+            g  = cv2.cvtColor(fg, cv2.COLOR_BGR2GRAY)
+            _, bw = cv2.threshold(g, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            inv = cv2.bitwise_not(bw)
 
-            # Save grayscale for debugging
-            cv2.imwrite(f"roi_{name}_1_gray.png", gray)
+            cv2.imwrite(f"roi_{name}_3_gray.png", g)
+            cv2.imwrite(f"roi_{name}_4_binary.png", bw)
+            cv2.imwrite(f"roi_{name}_5_inverted.png", inv)
 
-            # STEP 3: Apply denoising
-            denoised = cv2.fastNlMeansDenoising(gray, None, h=10, templateWindowSize=7, searchWindowSize=21)
-            log(f"[{name}] Applied denoising")
-            cv2.imwrite(f"roi_{name}_2_denoised.png", denoised)
-
-            # STEP 4: Increase contrast with CLAHE
-            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
-            contrast = clahe.apply(denoised)
-            log(f"[{name}] Enhanced contrast")
-            cv2.imwrite(f"roi_{name}_3_contrast.png", contrast)
-
-            # STEP 5: Apply threshold
-            _, thresh = cv2.threshold(contrast, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            log(f"[{name}] Applied threshold")
-
-            # STEP 6: Morphological operations to clean up
-            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-            thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
-            log(f"[{name}] Applied morphological operations")
-
-            # Save final preprocessed image for debugging
-            debug_ocr_path = f"roi_{name}_4_final_ocr_input.png"
-            cv2.imwrite(debug_ocr_path, thresh)
-            log(f"[{name}] Saved final OCR input image to: {debug_ocr_path}")
-
+            # --- OCR ---
             if ocr_type == "digits":
-                # Digit-only OCR
-                log(f"[{name}] Running digit-only OCR...")
-                text = pytesseract.image_to_string(thresh, lang="por",
-                                                   config="--psm 7 -c tessedit_char_whitelist=0123456789/")
-                text_clean = text.strip()
-                log(f"[{name}] OCR digits result: '{text_clean}' (length: {len(text_clean)})")
-                result["value"] = text_clean
+                # Strict numeric read; stick to 'por' per your environment
+                cfg = "--oem 3"
+                raw = pytesseract.image_to_string(fg,  lang="por", config=cfg)
+                txt = raw.strip()
+                log(f"[{name}] OCR digits raw: {raw!r}")
+                log(f"[{name}] OCR digits cleaned: '{txt}'")
+                result["value"] = txt
             else:
-                # Full text OCR
-                log(f"[{name}] Running full text OCR...")
-                text = pytesseract.image_to_string(thresh, lang="por", config="--psm 6")
-                text_clean = text.strip()
-                log(f"[{name}] OCR text result: '{text_clean}' (length: {len(text_clean)})")
-                result["value"] = text_clean
+                # General text
+                cfg = "--oem 3 --psm 6"
+                raw = pytesseract.image_to_string(fg, lang="por", config=cfg)
+                txt = raw.strip()
+                log(f"[{name}] OCR text raw: {raw!r}")
+                log(f"[{name}] OCR text cleaned: '{txt}'")
+                result["value"] = txt
 
         except Exception as e:
             log(f"[{name}] OCR failed: {e}")
             import traceback
             log(f"[{name}] OCR traceback: {traceback.format_exc()}")
             result["error"] = str(e)
+
     elif do_ocr and not pytesseract:
         log(f"[{name}] OCR requested but pytesseract not available")
         result["error"] = "pytesseract not installed"
-
     return result
+
+
 
 def extract_all_rois(image_path):
     """

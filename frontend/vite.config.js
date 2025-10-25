@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    allowedHosts: ['eminent-urgently-bull.ngrok-free.app'],
     proxy: {
       '/api': {
         target: 'http://localhost:3001',

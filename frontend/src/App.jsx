@@ -24,6 +24,19 @@ function App() {
     setState((prev) => ({ ...prev, files: Array.from(event.target.files ?? []) }));
   };
 
+  const handleClearFiles = () => {
+    setState((prev) => ({ ...prev, files: [] }));
+    // Reset the file input
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
+  const handleClearRecording = () => {
+    setRecording(null);
+  };
+
   const handleRecordingComplete = (blob) => {
     setRecording(blob);
   };
@@ -42,6 +55,7 @@ function App() {
       formData.append('prompt', state.prompt);
     }
 
+    console.log("recording",recording);
     if (recording) {
       formData.append('audio', recording, 'recording.webm');
     }
@@ -97,10 +111,21 @@ function App() {
           <label className="app__label" htmlFor="file-input">
             Attach files (optional)
           </label>
-          <input id="file-input" className="app__file-input" type="file" multiple onChange={handleFileChange} />
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <input id="file-input" className="app__file-input" type="file" multiple onChange={handleFileChange} />
+            {state.files.length > 0 && (
+              <button type="button" className="app__button app__button--secondary" onClick={handleClearFiles}>
+                Clear Files
+              </button>
+            )}
+          </div>
           {fileNames && <p className="app__file-list">Selected: {fileNames}</p>}
 
-          <AudioRecorder onRecordingComplete={handleRecordingComplete} />
+          <AudioRecorder
+            onRecordingComplete={handleRecordingComplete}
+            recording={recording}
+            onClearRecording={handleClearRecording}
+          />
 
           <div className="app__actions">
             <button className="app__button" type="submit" disabled={state.loading}>

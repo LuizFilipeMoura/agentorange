@@ -3,6 +3,12 @@ import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
 import ollama from 'ollama';
+import { spawn } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -88,24 +94,50 @@ async function transcribeBuffer(buffer, mimetype) {
   }
 
   try {
-    const transcription = await ollama.chat({
-      model: 'whisper',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'input_audio',
-              audio: buffer.toString('base64'),
-              format: mimetype || 'audio/webm',
-            },
-          ],
-        },
-      ],
+    // Convert buffer to base64
+    const audioBase64 = buffer.toString('base64');
+
+    // Path to Python script
+    const scriptPath = path.join(__dirname, '..', 'transcribe.py');
+
+    // Spawn Python process
+    const pythonProcess = spawn('python', [scriptPath], {
+      env: { ...process.env, WHISPER_MODEL: process.env.WHISPER_MODEL || 'base' }
     });
 
-    const text = transcription.message?.content?.[0]?.text ?? '';
-    return text.trim();
+    let stdout = '';
+    let stderr = '';
+
+    // Collect stdout
+    pythonProcess.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    // Collect stderr
+    pythonProcess.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    // Write base64 audio to stdin and close
+    pythonProcess.stdin.write(audioBase64);
+    pythonProcess.stdin.end();
+
+    // Wait for process to complete
+    return new Promise((resolve, reject) => {
+      pythonProcess.on('close', (code) => {
+        if (code !== 0) {
+          console.error('Transcription failed:', stderr);
+          resolve('');
+        } else {
+          resolve(stdout.trim());
+        }
+      });
+
+      pythonProcess.on('error', (error) => {
+        console.error('Failed to start transcription process:', error);
+        resolve('');
+      });
+    });
   } catch (error) {
     console.error('Transcription failed', error);
     return '';

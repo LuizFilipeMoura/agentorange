@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const recordingMimeType = 'audio/webm';
 
-function AudioRecorder({ onRecordingComplete }) {
+function AudioRecorder({ onRecordingComplete, recording, onClearRecording }) {
   const mediaRecorderRef = useRef(null);
   const [chunks, setChunks] = useState([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
+  const [audioUrl, setAudioUrl] = useState(null);
 
   useEffect(() => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -22,7 +23,7 @@ function AudioRecorder({ onRecordingComplete }) {
 
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          setChunks((prev) => [...prev, event.data]);
+          chunksRef.current.push(event.data);
         }
       };
 
@@ -34,7 +35,9 @@ function AudioRecorder({ onRecordingComplete }) {
         if (blob.size > 0) {
           onRecordingComplete?.(blob);
         }
-        stream.getTracks().forEach((track) => track.stop());
+          console.log("onstop", blob)
+
+          stream.getTracks().forEach((track) => track.stop());
       };
 
       chunksRef.current = [];
@@ -60,6 +63,21 @@ function AudioRecorder({ onRecordingComplete }) {
     chunksRef.current = chunks;
   }, [chunks]);
 
+  // Create object URL for the recording blob
+  useEffect(() => {
+    if (recording) {
+      const url = URL.createObjectURL(recording);
+      setAudioUrl(url);
+
+      // Cleanup function to revoke the object URL
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    } else {
+      setAudioUrl(null);
+    }
+  }, [recording]);
+
   return (
     <div className="recorder">
       <p className="recorder__label">Audio Recording (optional)</p>
@@ -76,7 +94,18 @@ function AudioRecorder({ onRecordingComplete }) {
         <button type="button" className="app__button app__button--secondary" onClick={stopRecording} disabled={!isRecording}>
           Stop
         </button>
+        {recording && onClearRecording && (
+          <button type="button" className="app__button app__button--secondary" onClick={onClearRecording}>
+            Clear Recording
+          </button>
+        )}
       </div>
+      {audioUrl && (
+        <div style={{ marginTop: '10px' }}>
+          <p style={{ fontSize: '14px', marginBottom: '5px' }}>Current recording:</p>
+          <audio controls src={audioUrl} style={{ width: '100%', maxWidth: '400px' }} />
+        </div>
+      )}
     </div>
   );
 }
