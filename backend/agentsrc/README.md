@@ -19,8 +19,8 @@ node backend/agentsrc/llava_agent.js
 - Saves all captures to `./agent_captures/`
 
 **Requirements:**
-- Ollama running locally with LLaVA model: `ollama pull llava`
-- robotjs installed: `npm install` (should auto-install)
+- Python with pyautogui: `pip install pyautogui`
+- Ollama running locally with LLaVA model: `ollama pull llava` (or use custom endpoint)
 - Game window must be visible and active
 
 **Use when:** You want the AI to play the game autonomously
