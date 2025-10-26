@@ -1,0 +1,40 @@
+version: "3.9"
+services:
+  qwen3-vl-2b:
+    image: vllm/vllm-openai:latest
+    container_name: qwen3-vl-2b
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+    volumes:
+      - ${HOME}/models/Qwen3-VL-2B-Instruct:/model
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface
+    command: >
+      --model /model
+      --host 0.0.0.0
+      --port 8000
+      --gpu-memory-utilization 0.65
+      --max-model-len 2048
+      --kv-cache-dtype fp8
+      --max-num-batched-tokens 512
+      --max-num-seqs 2
+
+  xtts:
+    build: ./xtts-server
+    container_name: xtts
+    ports:
+      - "8020:8020"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: ["gpu"]
+    environment:
+      HF_HOME: /root/.cache/huggingface
+      COQUI_TOS_AGREED: "1"   # required to skip the CPML prompt
+    volumes:
+      - ${HOME}/.cache/huggingface:/root/.cache/huggingface

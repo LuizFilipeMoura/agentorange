@@ -2,26 +2,31 @@
 
 ## Usage Options
 
-### Option 0: AI Agent (LLaVA-powered game player) 🤖
-**`llava_agent.js`** - Autonomous agent that plays the game using vision AI
+### Option 0: AI Agent (Vision model-powered game player) 🤖
+**`vision_agent.js`** - Autonomous agent that plays the game using vision AI
 
 ```bash
-node backend/agentsrc/llava_agent.js
+node backend/agentsrc/vision_agent.js
 ```
 
 **What it does:**
 - Captures game window screenshots
-- Sends screenshots to LLaVA vision model (via Ollama)
-- LLaVA analyzes the game state and decides actions
-- Executes mouse actions using robotjs (move, click, drag)
+- Sends screenshots to vLLM vision model API
+- Vision model analyzes the game state and decides actions
+- Executes mouse actions using Python/pyautogui (move, click, drag)
 - Extracts ROI data for debugging
 - Hard limit of 10 events then stops
 - Saves all captures to `./agent_captures/`
 
 **Requirements:**
 - Python with pyautogui: `pip install pyautogui`
-- Ollama running locally with LLaVA model: `ollama pull llava` (or use custom endpoint)
+- vLLM server running at `http://localhost:8000/v1/chat/completions`
 - Game window must be visible and active
+
+**Configuration:**
+- `temperature: 0.7` - Controls randomness (0.0 = deterministic, 1.0 = creative)
+- `top_p: 0.9` - Nucleus sampling threshold
+- `repetition_penalty: 1.1` - Prevents repetitive actions
 
 **Use when:** You want the AI to play the game autonomously
 
@@ -80,7 +85,7 @@ node backend/agentsrc/extract_from_image.js ./screenshots/capture_1_123456.png
 ## Files
 
 ### Main Scripts
-- **`llava_agent.js`** - AI agent that plays the game autonomously 🤖
+- **`vision_agent.js`** - AI agent that plays the game autonomously using vLLM 🤖
 - **`capture_and_extract.js`** - All-in-one (capture + extract loop) ⭐ **Most used**
 - **`capture_game.js`** - Capture only
 - **`extract_from_image.js`** - Extract from specific image
@@ -92,6 +97,10 @@ node backend/agentsrc/extract_from_image.js ./screenshots/capture_1_123456.png
   - Processes image with OpenCV
   - Detects playable cards
   - Runs OCR
+- **`mouse_control.py`** - Mouse control script for vision agent
+  - Executes mouse actions (move, click, drag_start, drag_end)
+  - Uses pyautogui for cross-platform mouse control
+- **`mouse_position_tracker.py`** - Utility to track mouse position in real-time
 
 ### Utilities
 - **`read_text.py`** - Simple OCR test on any image

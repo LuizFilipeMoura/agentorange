@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import AudioRecorder from './components/AudioRecorder.jsx';
 import MessageBubble from './components/MessageBubble.jsx';
 
@@ -6,6 +6,7 @@ const initialState = {
   prompt: '',
   files: [],
   response: null,
+  responseAudio: null,
   loading: false,
   error: null,
 };
@@ -13,8 +14,33 @@ const initialState = {
 function App() {
   const [state, setState] = useState(initialState);
   const [recording, setRecording] = useState(null);
+  const [responseAudioUrl, setResponseAudioUrl] = useState(null);
 
   const fileNames = useMemo(() => state.files.map((file) => file.name).join(', '), [state.files]);
+
+  // Convert base64 audio to blob URL
+  useEffect(() => {
+    if (state.responseAudio) {
+      try {
+        const binaryString = atob(state.responseAudio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        setResponseAudioUrl(url);
+
+        return () => {
+          URL.revokeObjectURL(url);
+        };
+      } catch (error) {
+        console.error('Failed to convert audio:', error);
+      }
+    } else {
+      setResponseAudioUrl(null);
+    }
+  }, [state.responseAudio]);
 
   const handlePromptChange = (event) => {
     setState((prev) => ({ ...prev, prompt: event.target.value }));
@@ -76,7 +102,12 @@ function App() {
       }
 
       const data = await response.json();
-      setState((prev) => ({ ...prev, response: data.message, loading: false }));
+      setState((prev) => ({
+        ...prev,
+        response: data.message,
+        responseAudio: data.audio,
+        loading: false
+      }));
     } catch (error) {
       setState((prev) => ({ ...prev, loading: false, error: error.message }));
     }
@@ -142,6 +173,12 @@ function App() {
           {state.loading && <p>Waiting for the assistant…</p>}
           {state.error && <p className="app__error">{state.error}</p>}
           {state.response && <MessageBubble message={state.response} />}
+          {responseAudioUrl && (
+            <div style={{ marginTop: '15px' }}>
+              <p style={{ fontSize: '14px', marginBottom: '5px', fontWeight: '500' }}>Audio Response:</p>
+              <audio controls src={responseAudioUrl} style={{ width: '100%', maxWidth: '500px' }} autoPlay />
+            </div>
+          )}
         </section>
       </main>
     </div>

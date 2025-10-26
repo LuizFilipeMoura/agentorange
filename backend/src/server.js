@@ -2,7 +2,6 @@ import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import multer from 'multer';
-import ollama from 'ollama';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -12,7 +11,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3001;
-const ollamaModel = process.env.OLLAMA_MODEL || 'llama3';
+const vllmBaseUrl = process.env.VLLM_BASE_URL || 'http://localhost:8000';
+const vllmModel = process.env.VLLM_MODEL || '/model';
+const xttsBaseUrl = process.env.XTTS_BASE_URL || 'http://localhost:8020';
+const xttsLanguage = process.env.XTTS_LANGUAGE || 'en';
+
 const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(cors());
@@ -61,26 +64,60 @@ app.post(
 
       const userMessage = contextSections.join('\n\n');
 
-      const response = await ollama.chat({
-        model: ollamaModel,
-        messages: [
-          {
-            role: 'system',
-            content:
-              'You are an AI assistant. Use the provided prompt, audio transcription, and attachment summaries to craft your answer.',
-          },
-          {
-            role: 'user',
-            content: userMessage,
-          },
-        ],
+      const vllmResponse = await fetch(`${vllmBaseUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: vllmModel,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an AI assistant. Use the provided prompt, audio transcription, and attachment summaries to craft your answer.',
+            },
+            {
+              role: 'user',
+              content: userMessage,
+            },
+          ],
+        }),
       });
 
-      const message = Array.isArray(response.message?.content)
-        ? response.message.content.map((item) => item.text ?? '').join('\n')
-        : response.message?.content ?? '';
+      if (!vllmResponse.ok) {
+        throw new Error(`vLLM API error: ${vllmResponse.statusText}`);
+      }
 
-      res.json({ message });
+      const vllmData = await vllmResponse.json();
+      const message = vllmData.choices?.[0]?.message?.content ?? '';
+
+      // Generate audio from the response using XTTS
+      let audioBase64 = null;
+      try {
+        const xttsResponse = await fetch(`${xttsBaseUrl}/v1/audio/speech`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: message,
+            language: xttsLanguage,
+          }),
+        });
+
+        if (xttsResponse.ok) {
+          const audioBuffer = await xttsResponse.arrayBuffer();
+          audioBase64 = Buffer.from(audioBuffer).toString('base64');
+        } else {
+          console.error('XTTS API error:', xttsResponse.statusText);
+        }
+      } catch (xttsError) {
+        console.error('Failed to generate audio:', xttsError);
+        // Continue without audio if XTTS fails
+      }
+
+      res.json({ message, audio: audioBase64 });
     } catch (error) {
       console.error('Failed to process request', error);
       res.status(500).json({ error: 'Failed to process request', details: error.message });
